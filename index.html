@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Spot the Difference</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;700&display=swap">
+<style>
+:root{
+  --bg:#fff4d6; --ink:#3b2a63; --card:#ffffff; --accent:#ff6b4a; --good:#2dbd6e; --dot:#e6dcc3; --shadow:#e8d9a8;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){--bg:#241b3d; --ink:#fff1c9; --card:#3a2d5c; --accent:#ff8a6b; --good:#4fe08f; --dot:#4d3f77; --shadow:#17102b;}
+}
+:root[data-theme="dark"]{--bg:#241b3d; --ink:#fff1c9; --card:#3a2d5c; --accent:#ff8a6b; --good:#4fe08f; --dot:#4d3f77; --shadow:#17102b;}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%}
+body{background:var(--bg);color:var(--ink);font-family:"Fredoka","Comic Sans MS","Trebuchet MS",system-ui,sans-serif;text-align:center;padding:16px 14px 28px}
+h1{font-size:clamp(26px,5vw,40px);margin:4px 0 2px;font-weight:700}
+.sub{margin:0 0 14px;font-size:clamp(16px,2.6vw,20px);opacity:.85}
+.pics{display:grid;grid-template-columns:1fr 1fr;gap:14px;max-width:980px;margin:0 auto}
+.pic{background:var(--card);border-radius:22px;padding:8px;box-shadow:0 6px 0 var(--shadow)}
+.pic svg{display:block;width:100%;height:auto;border-radius:16px;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+@media (max-width:700px){.pics{grid-template-columns:1fr;gap:12px}}
+.status{margin:18px 0 8px;font-size:clamp(24px,5vw,34px);font-weight:700;min-height:1.3em}
+.status.miss{color:var(--accent)}
+.dots{display:flex;justify-content:center;flex-wrap:wrap;gap:6px;margin-bottom:16px}
+.dot{width:26px;height:26px;border-radius:50%;background:var(--dot);display:grid;place-items:center;font-size:18px;transition:transform .2s,background .2s}
+.dot.on{background:var(--good);transform:scale(1.15)}
+button{font:inherit;font-weight:700;font-size:20px;color:#fff;background:var(--accent);border:0;border-radius:999px;padding:12px 28px;cursor:pointer;box-shadow:0 5px 0 rgba(0,0,0,.2)}
+button:active{transform:translateY(3px);box-shadow:0 2px 0 rgba(0,0,0,.2)}
+button:focus-visible{outline:4px solid var(--ink);outline-offset:3px}
+.btns{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+.ghost{background:transparent;color:var(--ink);border:3px solid var(--ink);box-shadow:none;padding:9px 24px}
+.ring{fill:none;stroke:var(--good);stroke-width:5;transform-box:fill-box;transform-origin:center;animation:pop .4s ease-out}
+.x{font:700 28px "Fredoka",sans-serif;fill:#ff3b30;text-anchor:middle;animation:fade .8s ease-out forwards}
+@keyframes pop{from{transform:scale(.2);opacity:0}to{transform:scale(1);opacity:1}}
+@keyframes fade{to{opacity:0;transform:translateY(-10px)}}
+.win{position:fixed;inset:0;background:rgba(36,27,61,.72);display:none;align-items:center;justify-content:center;padding:20px;z-index:20}
+.win.show{display:flex}
+.box{background:var(--card);border-radius:28px;padding:28px 24px;max-width:380px;animation:pop .45s ease-out}
+.box .big{font-size:64px;line-height:1}
+.box h2{margin:8px 0 6px;font-size:32px}
+.box p{margin:0 0 18px;font-size:19px}
+@media (prefers-reduced-motion:reduce){.ring,.x,.box{animation:none}.x{opacity:0}}
+</style>
+</head>
+<body>
+<h1>Spot the Difference!</h1>
+<p class="sub">Tap the spots where the two pictures don’t match.</p>
+
+<div class="pics">
+  <div class="pic"><svg id="A" viewBox="0 0 400 300" role="img" aria-label="Picture one"></svg></div>
+  <div class="pic"><svg id="B" viewBox="0 0 400 300" role="img" aria-label="Picture two"></svg></div>
+</div>
+
+<div class="status" id="status" aria-live="polite"></div>
+<div class="dots" id="dots"></div>
+<div class="btns"><button id="newp">New picture</button><button id="again" class="ghost">Start over</button></div>
+
+<div class="win" id="win">
+  <div class="box">
+    <div class="big">🎉⭐🎉</div>
+    <h2>Congratulations!</h2>
+    <p id="wintext"></p>
+    <button id="play">New picture</button>
+  </div>
+</div>
+
+<script>
+const PAL={
+ flower:['#ff6fa5','#ffa733','#b06bff','#ff4d4d','#ffffff'],
+ butterfly:['#ff9f1c','#7b5cff','#2ec4b6','#ff5d8f'],
+ balloon:['#e63946','#3f7be8','#ffd93b','#2dbd6e','#b06bff'],
+ mushroom:['#e63946','#ff9f1c','#b06bff','#3f7be8'],
+ tree:['#3fa34d','#f0a030','#8bc34a','#2e8b8b'],
+ house:['#d9534f','#3f7be8','#8e5ac8','#e08a1e'],
+ bird:['#222','#e63946','#3f7be8','#7b5cff']
+};
+PAL.kite=PAL.balloon;PAL.person=['#e63946','#3f7be8','#ffd93b','#2dbd6e','#b06bff','#ff8fb1','#ff9f1c'];
+const SKIN=['#f5cba7','#e0ac80','#c68642','#8d5524','#ffdbb4'],HAIR=['#2b1b10','#6b4423','#d9a441','#c8501e','#111','#e8d8b0'],PANTS=['#3a4f8f','#4a4a4a','#6b4423','#2f6f5f'];
+const WALLS=['#ffe4b5','#ffd1dc','#c9e7ff','#d8f0c0'];
+const THEMES=[
+ {sky:'#bfe6ff',h1:'#7ccf6a',h2:'#66bb55',g:'#8fd96e'},
+ {sky:'#ffe3c2',h1:'#9bd36a',h2:'#7fbf55',g:'#a6dc72'},
+ {sky:'#d9d4ff',h1:'#6fcf8a',h2:'#58b878',g:'#86dc9a'},
+ {sky:'#c8f1e8',h1:'#8fd06a',h2:'#74bb55',g:'#9ddc78'}
+];
+// k: kinds of difference, r: tap radius, f: footprint (spacing), y: height range
+const T={
+ house:{k:['color'],r:22,f:38,y:[168,212]},
+ tree:{k:['color','size'],r:28,f:34,y:[150,205]},
+ cloud:{k:['missing','size'],r:24,f:28,y:[25,100]},
+ balloon:{k:['missing','color'],r:15,f:18,y:[30,125]},
+ kite:{k:['missing','color'],r:16,f:20,y:[35,120]},
+ bird:{k:['missing','color'],r:16,f:18,y:[30,125]},
+ butterfly:{k:['missing','color','size'],r:15,f:16,y:[95,215]},
+ flower:{k:['missing','color','size'],r:11,f:12,y:[232,268]},
+ mushroom:{k:['missing','color','size'],r:13,f:14,y:[235,275]},
+ ladybug:{k:['missing','size'],r:10,f:11,y:[235,282]},
+ person:{k:['missing','color','size','words'],r:18,f:50,y:[222,262],x:[58,342]}
+};
+const DRAW={
+ tree:c=>`<ellipse cy="45" rx="26" ry="5" fill="#0003"/><path d="M-6 45 q2 -20 -1 -37 h14 q-3 17 -1 37z" fill="#7a4b22"/><path d="M2 45 q1 -18 0 -37 h5 q-3 17 -1 37z" fill="#5a3818"/><g fill="${c}"><circle cy="-8" r="26"/><circle cx="-17" cy="8" r="17"/><circle cx="17" cy="8" r="17"/></g><g fill="#000" fill-opacity=".15"><circle cx="8" cy="14" r="15"/><circle cx="22" cy="11" r="11"/></g><g fill="#fff" fill-opacity=".2"><circle cx="-8" cy="-17" r="13"/><circle cx="-21" cy="3" r="8"/></g><g fill="#e63946"><circle cx="-9" cy="-6" r="4"/><circle cx="12" cy="-12" r="4"/><circle cx="2" cy="10" r="4"/></g><g fill="#fff" fill-opacity=".7"><circle cx="-10" cy="-7" r="1"/><circle cx="11" cy="-13" r="1"/><circle cx="1" cy="9" r="1"/></g>`,
+ house:(c,o)=>`<ellipse cy="49" rx="40" ry="6" fill="#0003"/><rect x="14" y="-26" width="10" height="18" fill="#a0522d"/><rect x="12" y="-28" width="14" height="4" fill="#7a4b22"/><rect x="-30" width="60" height="48" fill="${o.w}" stroke="#b58c58" stroke-width="1.5"/><rect x="14" width="16" height="48" fill="#000" fill-opacity=".08"/><polygon points="-38,1 0,-30 38,1" fill="${c}"/><polygon points="-38,1 0,-30 38,1" fill="none" stroke="#0004" stroke-width="1.5"/><path d="M-29 -7 h58 M-19 -14 h38 M-9 -22 h18" stroke="#0003" stroke-width="1.2"/><rect x="-7" y="22" width="14" height="26" rx="2" fill="#8b5a2b" stroke="#5a3818"/><circle cx="3" cy="36" r="1.5" fill="#ffd93b"/><g fill="#bde3ff" stroke="#6b4a2a" stroke-width="2"><rect x="-25" y="10" width="13" height="13"/><rect x="12" y="10" width="13" height="13"/></g><path d="M-18.5 10 v13 M-25 16.5 h13 M18.5 10 v13 M12 16.5 h13" stroke="#6b4a2a" stroke-width="1.2"/><path d="M-23 12 h4 l-4 4z M14 12 h4 l-4 4z" fill="#fff" fill-opacity=".6"/>`,
+ flower:c=>`<ellipse cy="22" rx="6" ry="1.8" fill="#0003"/><line y2="22" stroke="#2f8f3a" stroke-width="3"/><path d="M0 15 q9 -9 11 -2 q-6 5 -11 2z" fill="#3fa34d"/>${[0,1,2,3,4].map(i=>{const a=i*1.2566;return `<circle cx="${(Math.cos(a)*6.5).toFixed(1)}" cy="${(Math.sin(a)*6.5).toFixed(1)}" r="5" fill="${c}" stroke="#0003" stroke-width=".6"/>`}).join('')}<circle r="4" fill="#ffd23b"/><circle cx="-1" cy="-1" r="1.3" fill="#fff" fill-opacity=".7"/>`,
+ butterfly:c=>`<ellipse cx="-9" cy="-4" rx="10" ry="8" fill="${c}"/><ellipse cx="9" cy="-4" rx="10" ry="8" fill="${c}"/><ellipse cx="-6" cy="7" rx="6" ry="5" fill="${c}" fill-opacity=".65"/><ellipse cx="6" cy="7" rx="6" ry="5" fill="${c}" fill-opacity=".65"/><circle cx="-10" cy="-5" r="2" fill="#fff" fill-opacity=".7"/><circle cx="10" cy="-5" r="2" fill="#fff" fill-opacity=".7"/><rect x="-1.5" y="-10" width="3" height="20" rx="1.5" fill="#3b2a63"/><path d="M0 -10 q-3 -5 -6 -5 M0 -10 q3 -5 6 -5" stroke="#3b2a63" fill="none"/>`,
+ bird:c=>`<path d="M-14 0 q7 -9 14 0 q7 -9 14 0" stroke="${c}" stroke-width="3" fill="none" stroke-linecap="round"/><ellipse cy="1" rx="3.5" ry="2.5" fill="${c}"/>`,
+ cloud:()=>`<ellipse cy="9" rx="28" ry="6" fill="#dbe8f6"/><g fill="#fff"><circle cx="-18" r="13"/><circle cy="-6" r="16"/><circle cx="18" r="13"/><rect x="-18" y="-2" width="36" height="14" rx="7"/></g><circle cx="-4" cy="-10" r="9" fill="#fff"/>`,
+ balloon:c=>`<path d="M0 14 q-5 8 0 18" stroke="#666" fill="none"/><ellipse rx="11" ry="14" fill="${c}"/><polygon points="-3,17 3,17 0,13" fill="${c}"/><ellipse cx="-4" cy="-5" rx="3" ry="5" fill="#fff" fill-opacity=".4"/>`,
+ kite:c=>`<path d="M0 18 q-7 8 0 14 q7 8 0 14" stroke="#666" fill="none"/><polygon points="0,-16 11,0 0,18 -11,0" fill="${c}"/><path d="M0 -16 V18 M-11 0 H11" stroke="#fff" stroke-opacity=".55"/>`,
+ mushroom:c=>`<ellipse cy="13" rx="9" ry="2.5" fill="#0003"/><rect x="-4" y="1" width="8" height="12" rx="3" fill="#fff0d6"/><rect x="1" y="1" width="3" height="12" rx="1.5" fill="#000" fill-opacity=".1"/><path d="M-14 2 a14 12 0 0 1 28 0z" fill="${c}"/><circle cx="-5" cy="-4" r="2" fill="#fff"/><circle cx="5" cy="-5" r="2" fill="#fff"/>`,
+ ladybug:()=>`<ellipse cy="8" rx="8" ry="2" fill="#0003"/><circle cx="0" cy="-8" r="3.5" fill="#222"/><circle r="8" fill="#e63946"/><line y1="-8" y2="8" stroke="#222" stroke-width="1.5"/><circle cx="-4" cy="-2" r="1.8" fill="#222"/><circle cx="4" cy="3" r="1.8" fill="#222"/>`,
+ person:(c,o,t)=>`${o.mute?'':bubble(t)}<ellipse cy="26" rx="12" ry="3" fill="#0003"/><path d="M-4 8 v17 M4 8 v17" stroke="${o.p}" stroke-width="5" stroke-linecap="round"/><path d="M-6 25 h-3 M6 25 h3" stroke="#3b2a2a" stroke-width="4" stroke-linecap="round"/><path d="M-8 -9 q8 -4 16 0 l2 17 h-20z" fill="${c}"/><path d="M-8 -7 l-4 14 M8 -7 l4 14" stroke="${c}" stroke-width="4" stroke-linecap="round"/><circle cx="-12" cy="8" r="2.3" fill="${o.sk}"/><circle cx="12" cy="8" r="2.3" fill="${o.sk}"/><circle cy="-16" r="8" fill="${o.sk}"/><path d="M-8.5 -17 q1 -9 8.5 -9 q7.5 0 8.5 9 q-4 -5 -8.5 -4 q-4.5 -1 -8.5 4z" fill="${o.hr}"/><circle cx="-3" cy="-16" r="1" fill="#222"/><circle cx="3" cy="-16" r="1" fill="#222"/><path d="M-3 -12.5 q3 2.5 6 0" stroke="#a33" stroke-width="1" fill="none"/>`
+};
+
+const SAY=['Hi, my name is Sam and I am a wizard.','Hello! My name is Mia and I love cake.','Look at me! I can jump really high!','I am Leo and I have a pet dragon.','Wow! This is the best day ever!','My name is Ava and I can fly a kite.','Yum! I just ate ten big strawberries!','Hi, I am Max and I love to splash!','Can you spot all the differences?','Hello! I am Zoe and I am a pirate.','I found a tiny ladybug in the grass!','My name is Ben and I am a knight.'];
+function tweak(hex,R){ // a nearby colour: hue nudged 30-45 degrees
+  const n=parseInt(hex.slice(1),16),r=(n>>16)/255,g=(n>>8&255)/255,b=(n&255)/255;
+  const mx=Math.max(r,g,b),mn=Math.min(r,g,b),l=(mx+mn)/2,d=mx-mn;
+  let h=0,s=0;
+  if(d){s=d/(1-Math.abs(2*l-1));h=mx===r?((g-b)/d)%6:mx===g?(b-r)/d+2:(r-g)/d+4;h*=60;if(h<0)h+=360}
+  const L=l<.2?.4:l>.9?.8:l;
+  return `hsl(${Math.round((h+(R()<.5?-1:1)*(30+R()*15)+360)%360)} ${Math.round(Math.max(s,.3)*100)}% ${Math.round(L*100)}%)`;
+}
+function dims(t){
+  const lines=[];let cur='';
+  t.split(' ').forEach(w=>{if(cur&&(cur+' '+w).length>14){lines.push(cur);cur=w}else cur=cur?cur+' '+w:w});
+  lines.push(cur);
+  return{lines,w:Math.max(...lines.map(l=>l.length))*5.4+12,h:lines.length*11+8};
+}
+function bubble(t){
+  const{lines,w,h}=dims(t);
+  return `<g transform="translate(0 ${(-(36+h/2)).toFixed(1)})"><polygon points="-5,${h/2-1} 3,${h/2-1} 0,${h/2+9}" fill="#fff" stroke="#3b2a63" stroke-width="1.2" stroke-linejoin="round"/><rect x="${(-w/2).toFixed(1)}" y="${(-h/2).toFixed(1)}" width="${w.toFixed(1)}" height="${h}" rx="9" fill="#fff" stroke="#3b2a63" stroke-width="1.2"/><rect x="-4" y="${h/2-3}" width="7" height="4" fill="#fff"/><text text-anchor="middle" fill="#3b2a63" style="font:700 9.5px 'Fredoka','Comic Sans MS',sans-serif">${lines.map((l,i)=>`<tspan x="0" y="${(-h/2+13+i*11).toFixed(1)}">${l}</tspan>`).join('')}</text></g>`;
+}
+function wordDiff(o){
+  const A=dims(o.say),B=dims(o.q);
+  return{x:o.x,y:o.y-(36+A.h/2)*o.s,w:Math.max(A.w,B.w)/2*o.s,h:Math.max(A.h,B.h)/2*o.s,r:0};
+}
+function rng(a){return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+const WANT=10;
+function gen(seed){
+  const R=rng(seed),pick=a=>a[Math.floor(R()*a.length)],rand=(a,b)=>a+R()*(b-a);
+  const th=pick(THEMES),sunX=R()<.5?rand(45,90):rand(310,355);
+  const objs=[],obst=[{x:sunX,y:55,f:44}];
+  const add=(t,n)=>{const d=T[t];for(let i=0;i<n;i++)for(let k=0;k<80;k++){
+    const x=rand(...(d.x||[30,370])),y=rand(d.y[0],d.y[1]);
+    if([...objs,...obst].every(p=>Math.hypot(x-p.x,y-p.y)>=d.f+p.f)){
+      const c=PAL[t]?pick(PAL[t]):null;const c2=c?tweak(c,R):c;const say=pick(SAY);let q=pick(SAY);while(q===say)q=pick(SAY);
+      objs.push({t,x,y,c,c2,say,q,f:d.f,r:d.r,s:t==='person'?rand(.8,1.25):rand(.92,1.08),z:R()<.5?1.28:.78,w:pick(WALLS),sk:pick(SKIN),hr:pick(HAIR),p:pick(PANTS)});break;}}};
+  add('person',3);add('house',R()<.5?2:1);add('tree',4);add('cloud',4);add('balloon',3);add('kite',2);add('bird',4);add('butterfly',3);add('flower',8);add('mushroom',4);add('ladybug',3);
+  const people=objs.filter(o=>o.t==='person'),hidden=o=>people.filter(p=>!p.mute).some(p=>{const w=wordDiff(p);return Math.abs(o.x-w.x)<w.w+o.r&&Math.abs(o.y-w.y)<w.h+o.r});
+  people.forEach(p=>{p.mute=R()<.45});
+  if(people.length>1){if(people.every(p=>p.mute))people[0].mute=false;if(people.every(p=>!p.mute))people[0].mute=true}
+  const order=objs.map(o=>[R(),o]).sort((a,b)=>a[0]-b[0]).map(a=>a[1]),chosen=[],cnt={};
+  [[60,2],[40,3],[25,4],[0,9]].forEach(([gap,max])=>order.forEach(o=>{
+    if(chosen.length<WANT&&!o.d&&(cnt[o.t]||0)<max&&chosen.every(q=>Math.hypot(o.x-q.x,o.y-q.y)>gap)&&(o.t==='person'||!hidden(o))){o.d=pick(o.mute?T[o.t].k.filter(k=>k!=='words'):T[o.t].k);chosen.push(o);cnt[o.t]=(cnt[o.t]||0)+1;}}));
+  const far=Array.from({length:15},(_,i)=>({x:i*28+rand(-6,6),r:rand(9,17)})),tufts=Array.from({length:45},()=>({x:rand(5,395),y:rand(232,296)}));
+  return{th,sunX,far,tufts,objs,diffs:chosen.map(o=>o.d==='words'?wordDiff(o):{x:o.x,y:o.y,r:o.r})};
+}
+function scene(alt){
+  const th=world.th,sx=world.sunX.toFixed(0);
+  let s=`<defs><radialGradient id="gl"><stop offset="0" stop-color="#fff6a8" stop-opacity=".9"/><stop offset="1" stop-color="#fff6a8" stop-opacity="0"/></radialGradient><linearGradient id="sk" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#fff" stop-opacity=".75"/></linearGradient><linearGradient id="sh" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".22"/><stop offset="1" stop-color="#000" stop-opacity=".1"/></linearGradient></defs><rect width="400" height="300" fill="${th.sky}"/><rect width="400" height="230" fill="url(#sk)"/><circle cx="${sx}" cy="55" r="62" fill="url(#gl)"/><circle cx="${sx}" cy="55" r="24" fill="#ffd93b"/>${world.far.map(f=>`<circle cx="${f.x.toFixed(0)}" cy="182" r="${f.r.toFixed(0)}" fill="#2f7d3a" opacity=".5"/>`).join('')}<ellipse cx="100" cy="238" rx="190" ry="62" fill="${th.h1}"/><ellipse cx="340" cy="238" rx="170" ry="50" fill="${th.h2}"/><rect y="224" width="400" height="76" fill="${th.g}"/><ellipse cx="100" cy="238" rx="190" ry="62" fill="url(#sh)"/><rect y="224" width="400" height="76" fill="url(#sh)"/>${world.tufts.map(t=>`<path d="M${t.x.toFixed(0)} ${t.y.toFixed(0)} l-2 -5 m2 5 v-6 m0 6 l2 -5" stroke="${th.h2}" stroke-width="1.3" fill="none"/>`).join('')}`;
+  [...world.objs].sort((a,b)=>a.y-b.y).forEach(o=>{
+    if(alt&&o.d==='missing')return;
+    const c=alt&&o.d==='color'?o.c2:o.c,k=o.s*(alt&&o.d==='size'?o.z:1);
+    s+=`<g transform="translate(${o.x.toFixed(1)} ${o.y.toFixed(1)}) scale(${k.toFixed(2)})">${DRAW[o.t](c,o,alt&&o.d==='words'?o.q:o.say)}</g>`;
+  });
+  return s;
+}
+
+const svgs=[document.getElementById('A'),document.getElementById('B')];
+const statusEl=document.getElementById('status');
+const dotsEl=document.getElementById('dots');
+const win=document.getElementById('win');
+let world,DIFFS,TOTAL,found=new Set(),missTimer=null;
+
+function label(){
+  const n=found.size;
+  return n===0?`Find ${TOTAL} differences!`:n===1?'1 difference found':`${n} differences found`;
+}
+function newPicture(){
+  world=gen((Date.now()^Math.floor(Math.random()*1e9))>>>0);
+  DIFFS=world.diffs;TOTAL=DIFFS.length;render();
+}
+function render(){
+  svgs.forEach((s,i)=>{s.innerHTML=scene(i===1)+'<g class="marks"></g>';});
+  dotsEl.innerHTML=DIFFS.map(()=>'<div class="dot"></div>').join('');
+  document.getElementById('wintext').textContent=`You found all ${TOTAL} differences. Great spotting!`;
+  found=new Set(); update(); win.classList.remove('show');
+}
+function update(){
+  statusEl.className='status'; statusEl.textContent=label();
+  [...dotsEl.children].forEach((d,i)=>{const on=i<found.size;d.classList.toggle('on',on);d.textContent=on?'★':'';});
+}
+function mark(d){
+  const el=d.w?`<rect class="ring" x="${(d.x-d.w-6).toFixed(1)}" y="${(d.y-d.h-6).toFixed(1)}" width="${(2*d.w+12).toFixed(1)}" height="${(2*d.h+12).toFixed(1)}" rx="14"/>`:`<circle class="ring" cx="${d.x.toFixed(1)}" cy="${d.y.toFixed(1)}" r="${d.r+8}"/>`;
+  svgs.forEach(s=>s.querySelector('.marks').insertAdjacentHTML('beforeend',el));
+}
+const near=(d,x,y)=>d.w?Math.abs(x-d.x)<=d.w+6&&Math.abs(y-d.y)<=d.h+6:Math.hypot(x-d.x,y-d.y)<=d.r+6;
+function tap(e){
+  const s=e.currentTarget,b=s.getBoundingClientRect();
+  const x=(e.clientX-b.left)/b.width*400,y=(e.clientY-b.top)/b.height*300;
+  const idx=DIFFS.findIndex((d,i)=>!found.has(i)&&near(d,x,y));
+  if(idx>=0){
+    found.add(idx);mark(DIFFS[idx]);update();
+    if(found.size===TOTAL)setTimeout(()=>win.classList.add('show'),700);
+  }else if(!DIFFS.some((d,i)=>found.has(i)&&near(d,x,y))){
+    const g=s.querySelector('.marks');
+    g.insertAdjacentHTML('beforeend',`<text class="x" x="${x.toFixed(0)}" y="${y.toFixed(0)}">✕</text>`);
+    const t=g.lastElementChild;setTimeout(()=>t.remove(),850);
+    statusEl.className='status miss';statusEl.textContent='Not quite. Keep looking!';
+    clearTimeout(missTimer);missTimer=setTimeout(update,1200);
+  }
+}
+svgs.forEach(s=>s.addEventListener('click',tap));
+document.getElementById('newp').onclick=newPicture;
+document.getElementById('again').onclick=render;
+document.getElementById('play').onclick=newPicture;
+newPicture();
+</script>
+</body>
+</html>
